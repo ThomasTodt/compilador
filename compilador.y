@@ -11,12 +11,15 @@
 
 #include "compilador.h"
 #include "tabelaSimbolos.h"
+#include "tabelaTipos.h"
 
 int num_vars, nova_var, displacement, lexicalLevel;
-char totalVars[16], command[20];
+int pureExpression;
+char totalVars[16], command[20], varLexDisp[12], relacaoUsada[5];
 
-stackNode *newInput;
+stackNode *newInput, *destinyVariable, *loadedVariable;
 symbolsStack symbolsTable;
+typesStack typesTable;
 
 %}
 
@@ -35,12 +38,16 @@ symbolsStack symbolsTable;
 
 // REGRA 1
 programa    :{
-             geraCodigo (NULL, "INPP");
+               geraCodigo (NULL, "INPP");
              }
              PROGRAM IDENT
              ABRE_PARENTESES lista_idents FECHA_PARENTESES PONTO_E_VIRGULA
              bloco PONTO {
-             geraCodigo (NULL, "PARA");
+               strcpy(command,"DMEM ");
+               sprintf(totalVars, "%d", num_vars);
+               strcat(command, totalVars);
+               geraCodigo(NULL, command);
+               geraCodigo (NULL, "PARA");
              }
 ;
 
@@ -89,7 +96,8 @@ lista_id_var: lista_id_var VIRGULA IDENT
       nova_var++;
 		newInput = createSimpleVarInput(token, lexicalLevel, displacement);
 		push(&symbolsTable, newInput);
-		displacement++; }
+		displacement++;
+      }
             | IDENT { 
       nova_var++;
 		newInput = createSimpleVarInput(token, lexicalLevel, displacement);
@@ -119,7 +127,7 @@ numero_ou_nada: numero DOIS_PONTOS |
 
 // REGRA 18
 comando_sem_rotulo:
-	atribuicao
+	variavel atribuicao_procedimento
 	| desvio
 	| comando_composto
 	| comando_condicional
@@ -128,9 +136,149 @@ comando_sem_rotulo:
 	| escrita
 ;
 
+atribuicao_procedimento:
+	atribuicao
+	| chama_procedimento 
+;
+
+
 // REGRA 19
-atribuicao: variavel ATRIBUICAO expressao 
-{}
+atribuicao:
+   {}
+	ATRIBUICAO expressao
+	{
+		typeVerify(&typesTable, "atribuicao");
+		strcpy(command,"ARMZ ");
+		sprintf(varLexDisp, "%d, ", destinyVariable->lexicalLevel);
+		strcat(command, varLexDisp);
+		sprintf(varLexDisp, "%d", destinyVariable->displacement);
+		strcat(command, varLexDisp);
+		geraCodigo(NULL, command); 
+		destinyVariable = NULL;
+	}
+;
+
+chama_procedimento:
+
+//REGRA 24
+lista_expressoes: expressao | expressao VIRGULA lista_expressoes;
+
+//REGRA 25
+expressao:
+      
+   	{ } expressao_simples relacao_exp_simples_vazio 
+;
+
+relacao_exp_simples_vazio:
+	relacao expressao_simples
+	{ 
+		typeVerify(&typesTable, "relacional");
+		geraCodigo(NULL, relacaoUsada);
+	}
+;
+
+	|
+// REGRA 26
+relacao:
+	IGUAL { strcpy(relacaoUsada, "CMIG"); } 
+	| DIFF { strcpy(relacaoUsada, "CMDG"); } 
+	| MENOR { strcpy(relacaoUsada, "CMME"); } 
+	| MENOR_IGUAL { strcpy(relacaoUsada, "CMEG"); } 
+	| MAIOR_IGUAL { strcpy(relacaoUsada, "CMAG"); } 
+	| MAIOR { strcpy(relacaoUsada, "CMMA"); } 
+;
+
+// REGRA 27
+expressao_simples:
+   	mais_menos_vazio expressao_lista_termo
+;
+
+mais_menos_vazio:
+   	MAIS { pureExpression = 0; } | MENOS { pureExpression = 0; } | ;
+;
+
+expressao_lista_termo:
+	expressao_lista_termo lista_termo 
+	| termo 
+;
+
+lista_termo:
+	{ pureExpression = 0; } MAIS termo { typeVerify(&typesTable, "soma"); geraCodigo(NULL, "SOMA"); }
+	| { pureExpression = 0; } MENOS termo { typeVerify(&typesTable, "subtracao"); geraCodigo(NULL, "SUBT"); }
+	| { pureExpression = 0; } OR termo { typeVerify(&typesTable, "or"); geraCodigo(NULL, "DISJ"); }
+;
+
+// REGRA 28
+termo:
+	termo lista_fator 
+	| fator 
+;
+
+lista_fator:
+	{ pureExpression = 0; } ASTERISCO fator { typeVerify(&typesTable, "multiplicacao"); geraCodigo(NULL, "MULT"); }
+	| { pureExpression = 0; } BARRA fator { typeVerify(&typesTable, "divisao"); geraCodigo(NULL, "DIVI"); }
+	| { pureExpression = 0; } AND fator { typeVerify(&typesTable, "and"); geraCodigo(NULL, "CONJ"); }
+;
+
+
+// Regra 29
+fator:
+   	variavel %prec NADA
+	{
+		if(loadedVariable != NULL) {
+				strcpy(command, "CRVL ");
+				sprintf(varLexDisp, "%d, ", loadedVariable->lexicalLevel);
+				strcat(command, varLexDisp);
+				sprintf(varLexDisp, "%d", loadedVariable->displacement);
+				loadedVariable = NULL;
+				strcat(command, varLexDisp);
+				geraCodigo(NULL, command);
+		}
+		else {
+				strcpy(command, "CRVL ");
+				sprintf(varLexDisp, "%d, ", destinyVariable->lexicalLevel);
+				strcat(command, varLexDisp);
+				sprintf(varLexDisp, "%d", destinyVariable->displacement);
+				destinyVariable = NULL;
+				strcat(command, varLexDisp);
+				geraCodigo(NULL, command);
+		}
+	}
+	| variavel ABRE_PARENTESES
+	{
+	}
+	lista_expressoes FECHA_PARENTESES
+	{ 
+	}
+	| numero
+	| ABRE_PARENTESES expressao FECHA_PARENTESES
+	| NOT fator
+;
+
+// Regra 30
+variavel:
+   	IDENT {
+      
+		// If null, looks for left side of atribution
+      fprintf(stdout, "DESTINO: %s \n", token);
+
+		if(destinyVariable == NULL) {
+			destinyVariable = search(&symbolsTable, token);
+			if(destinyVariable == NULL) {
+				printf("Variavel %s nao encontrada na tabela de simbolos.\n", token);
+				exit(1);
+			}
+			pushTypeStack(&typesTable, destinyVariable->type);
+		}
+		else { // Otherwise, looks for right side
+			loadedVariable = search(&symbolsTable, token);
+			if(loadedVariable == NULL) {
+				printf("Variavel %s nao encontrada na tabela de simbolos.\n", token);
+				exit(1);
+			}
+			pushTypeStack(&typesTable, loadedVariable->type);
+		}
+   	}
 ;
 
 desvio:
@@ -145,32 +293,48 @@ comando_condicional:
 comando_repetitivo:
 ;
 
-leitura:
+leitura: READ ABRE_PARENTESES lista_leitura FECHA_PARENTESES
 ;
 
-escrita:
+lista_leitura: lista_leitura VIRGULA simbolo_leitura | simbolo_leitura
+
+simbolo_leitura: IDENT {
+   geraCodigo(NULL, "LEIT");
+
+   destinyVariable = search(&symbolsTable, token);
+   fprintf(stdout, "TOKEN: %s \n", token);
+   if(destinyVariable == NULL) {
+      printf("Variavel nao encontrada na tabela de simbolos.\n");
+      exit(1);
+   }
+
+   strcpy(command,"ARMZ ");
+   sprintf(varLexDisp, "%d, ", destinyVariable->lexicalLevel);
+   strcat(command, varLexDisp);
+   sprintf(varLexDisp, "%d", destinyVariable->displacement);
+   strcat(command, varLexDisp);
+   geraCodigo(NULL, command); 
+   destinyVariable = NULL;
+}
+
+escrita: WRITE ABRE_PARENTESES lista_escrita FECHA_PARENTESES
 ;
 
-expressao: variavel_ou_numero
-| lista_expressao
+lista_escrita: lista_escrita VIRGULA expressao { geraCodigo (NULL, "IMPR"); } 
+| expressao { geraCodigo (NULL, "IMPR"); }
+
+
+numero: 	
+   NUMERO
+	{
+		pushTypeStack(&typesTable, integer);
+		strcpy(command,"CRCT ");
+		sprintf(totalVars, "%s", token);
+		strcat(command, totalVars);
+		geraCodigo(NULL, command); 
+	}
 ;
 
-variavel_ou_numero: variavel | numero
-;
-
-lista_expressao: lista_expressao operacao variavel_ou_numero | variavel_ou_numero
-
-operacao: SOMA 
-| SUBTRACAO
-| MULTIPLICACAO
-| DIVISAO
-
-
-numero: IDENT
-;
-
-variavel: IDENT
-;
 
 %%
 
@@ -193,6 +357,10 @@ int main (int argc, char** argv) {
 /* -------------------------------------------------------------------
  *  Inicia a Tabela de S�mbolos
  * ------------------------------------------------------------------- */
+ 	createStack(&symbolsTable);
+   createTypeStack(&typesTable);
+	lexicalLevel = 0;
+	displacement = 0;
 
    yyin=fp;
    yyparse();

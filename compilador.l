@@ -20,6 +20,7 @@
 
 #include "compilador.h"
 #include "compilador.tab.h"
+#include "tabelaTipos.h"
 
 //#define IMPRIME(STR) {};
 #define IMPRIME(STR) printf("%s    # %s \n", STR, token);

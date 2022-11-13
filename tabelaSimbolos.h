@@ -6,10 +6,13 @@
 #include <string.h>
 
 #include "tabelaSimbolos.h"
+#include "tabelaTipos.h"
 
 typedef struct stackNode {
 	char *identifier, *label;
 	int lexicalLevel, displacement, numParams;
+	pascalType type;
+
 
 	struct stackNode *next;
 } stackNode;
@@ -30,5 +33,7 @@ stackNode* search(symbolsStack *symbolsTable, char *identifier);
 void pop(symbolsStack *symbolsTable, int n);
 
 stackNode* createSimpleVarInput(char *identifier, int lexicalLevel, int displacement);
+
+void printTable(symbolsStack *symbolsTable);
 
 #endif

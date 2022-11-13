@@ -1,3 +1,10 @@
      INPP
      AMEM 3
+     LEIT
+     ARMZ 0, 1
+     CRCT 1
+     ARMZ 0, 0
+     CRVL 0, 0
+     IMPR
+     DMEM 3
      PARA
