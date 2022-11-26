@@ -5,4 +5,3 @@ begin
     m:= 1;
     write(m);
 end.
-

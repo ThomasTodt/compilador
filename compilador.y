@@ -12,14 +12,16 @@
 #include "compilador.h"
 #include "tabelaSimbolos.h"
 #include "tabelaTipos.h"
+#include "tabelaRotulos.h"
 
-int num_vars, nova_var, displacement, lexicalLevel;
+int num_vars, nova_var, displacement, lexicalLevel, rotulo;
 int pureExpression;
 char totalVars[16], command[20], varLexDisp[12], relacaoUsada[5];
 
 stackNode *newInput, *destinyVariable, *loadedVariable;
 symbolsStack symbolsTable;
 typesStack typesTable;
+tagsStack tagsTable;
 
 %}
 
@@ -33,6 +35,9 @@ typesStack typesTable;
 %token IF THEN ELSE WHILE DO
 %token OR AND NOT DIV MAIS MENOS ASTERISCO BARRA NUMERO
 %token IGUAL DIFF MENOR MENOR_IGUAL MAIOR MAIOR_IGUAL
+
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
 
 %%
 
@@ -159,6 +164,113 @@ atribuicao:
 ;
 
 chama_procedimento:
+
+//REGRA 22
+comando_condicional:
+      if_then cond_else
+      {
+         int rot1 = popTagsStack(&tagsTable);
+         sprintf(command, "R%d", rot1);
+         geraCodigo(command, "NADA");
+      }
+;
+
+if_then:
+      IF ABRE_PARENTESES expressao FECHA_PARENTESES 
+      {
+         sprintf(command, "DSVF R%d", rotulo);
+         geraCodigo(NULL, command);
+
+         pushTagsStack(&tagsTable, rotulo+1);
+         pushTagsStack(&tagsTable, rotulo);
+         pushTagsStack(&tagsTable, rotulo+1);
+         rotulo += 2;
+      }
+      THEN comando_sem_rotulo
+      {
+         int rot1 = popTagsStack(&tagsTable);
+         sprintf(command, "DSVS R%d", rot1);
+         geraCodigo(NULL, command);
+
+         int rot0 = popTagsStack(&tagsTable);
+         sprintf(command, "R%d", rot0);
+         geraCodigo(command, "NADA");
+
+      } 
+      // ELSE comando_sem_rotulo
+      // {
+      //    int rot1 = popTagsStack(&tagsTable);
+      //    sprintf(command, "R%d", rot1);
+      //    geraCodigo(command, "NADA");
+      // }
+;
+
+cond_else: 
+         ELSE comando_sem_rotulo
+         {
+            int rot1 = popTagsStack(&tagsTable);
+            sprintf(command, "R%d", rot1);
+            geraCodigo(command, "NADA");
+         }
+         | %prec LOWER_THAN_ELSE 
+
+
+//REGRA 23
+comando_repetitivo: 
+      // WHILE 
+      // {
+      //    sprintf(command, "R%d", rotulo);
+      //    pushTagsStack(&tagsTable, rotulo);
+      //    pushTagsStack(&tagsTable, rotulo+1);
+      //    rotulo += 2;
+      //    geraCodigo(command, "NADA");  
+      // }
+      // expressao 
+      // {
+      //    int rot1 = topTagsStack(&tagsTable);
+      //    sprintf(command, "DSVF R%d", rot1);
+      //    geraCodigo(NULL, command);
+      // }
+      // DO comando_sem_rotulo
+      // {
+      //    int rot1 = popTagsStack(&tagsTable);
+      //    int rot0 = popTagsStack(&tagsTable);
+      //    sprintf(command, "DSVS R%d", rot0);
+      //    geraCodigo(NULL, command);
+      //    sprintf(command, "R%d", rot1);
+      //    geraCodigo(command, "NADA");
+      // }
+
+      // |
+
+      WHILE 
+      {
+         sprintf(command, "R%d", rotulo);
+
+         pushTagsStack(&tagsTable, rotulo);
+         pushTagsStack(&tagsTable, rotulo+1);
+         rotulo += 2;
+
+         geraCodigo(command, "NADA");  
+      }
+      ABRE_PARENTESES expressao FECHA_PARENTESES 
+      {
+         int rot1 = topTagsStack(&tagsTable);
+         sprintf(command, "DSVF R%d", rot1);
+         geraCodigo(NULL, command);
+      }
+      DO comando_sem_rotulo
+      {
+         int rot1 = popTagsStack(&tagsTable);
+         int rot0 = popTagsStack(&tagsTable);
+
+         sprintf(command, "DSVS R%d", rot0);
+         geraCodigo(NULL, command);
+
+         sprintf(command, "R%d", rot1);
+         geraCodigo(command, "NADA");
+      }
+;
 
 //REGRA 24
 lista_expressoes: expressao | expressao VIRGULA lista_expressoes;
@@ -287,12 +399,6 @@ desvio:
 comando_composto:
 ;
 
-comando_condicional:
-;
-
-comando_repetitivo:
-;
-
 leitura: READ ABRE_PARENTESES lista_leitura FECHA_PARENTESES
 ;
 
@@ -355,12 +461,15 @@ int main (int argc, char** argv) {
 
 
 /* -------------------------------------------------------------------
- *  Inicia a Tabela de S�mbolos
+ *  Inicia a Tabela de S�mbolos (e a de rótulos)
  * ------------------------------------------------------------------- */
  	createStack(&symbolsTable);
    createTypeStack(&typesTable);
+   createTagsStack(&tagsTable);
+   
 	lexicalLevel = 0;
 	displacement = 0;
+   rotulo = 0;
 
    yyin=fp;
    yyparse();
