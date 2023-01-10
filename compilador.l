@@ -246,6 +246,11 @@ write { simbolo = simb_write;
           return WRITE;
  }
 
+integer { simbolo = simb_integer;
+           strncpy (token, yytext, TAM_TOKEN);
+           return INTEGER;
+}
+
 \+ { simbolo = simb_mais;
           strncpy (token, yytext, TAM_TOKEN);
           IMPRIME(" mais ");

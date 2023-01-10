@@ -15,10 +15,14 @@
 #include "tabelaRotulos.h"
 
 int num_vars, nova_var, displacement, lexicalLevel, rotulo;
-int pureExpression;
-char totalVars[16], command[20], varLexDisp[12], relacaoUsada[5];
+int pureExpression, declaredProcedures, newParams, oldVars, num_parameter,insideProcedure;
+int isSubRoutine, receivingByReference, receivingFormalParams;
+char totalVars[16], command[20], varLexDisp[12], relacaoUsada[5], callProcedure[20];
+char *labelSubroutineEnd, *labelSubroutineStart ;
+char functionIdentifier[30];
+pascalType returnType;
 
-stackNode *newInput, *destinyVariable, *loadedVariable;
+stackNode *newInput, *destinyVariable, *loadedVariable, *paramNode, *currentProcedure, *currentParameter;
 symbolsStack symbolsTable;
 typesStack typesTable;
 tagsStack tagsTable;
@@ -35,6 +39,7 @@ tagsStack tagsTable;
 %token IF THEN ELSE WHILE DO
 %token OR AND NOT DIV MAIS MENOS ASTERISCO BARRA NUMERO
 %token IGUAL DIFF MENOR MENOR_IGUAL MAIOR MAIOR_IGUAL
+%token INTEGER
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -59,7 +64,14 @@ programa    :{
 // REGRA 2
 bloco       :
               parte_declara_vars
-
+               parte_declara_sub_rotinas
+                  {
+                     if(declaredProcedures > 0 && lexicalLevel == 0) {
+                        int rot1 = topTagsStack(&tagsTable);
+                        sprintf(command, "R%d", rot1);
+                        geraCodigo(command, "NADA");
+                     }
+                  }
               comando_composto
               ;
 
@@ -93,8 +105,11 @@ declara_var : {
               PONTO_E_VIRGULA
 ;
 
-tipo        : IDENT
+tipo:
+	INTEGER { setTypes(&symbolsTable, integer, nova_var); }
+	| IDENT
 ;
+
 
 lista_id_var: lista_id_var VIRGULA IDENT
               {
@@ -114,6 +129,207 @@ lista_id_var: lista_id_var VIRGULA IDENT
 // REGRA 9
 lista_idents: lista_idents VIRGULA IDENT
             | IDENT
+;
+
+// REGRA 11
+parte_declara_sub_rotinas:
+	parte_declara_sub_rotinas opcoes_sub_rotinas
+	| 
+;
+
+opcoes_sub_rotinas:
+	declaracao_procedimento PONTO_E_VIRGULA
+	| declaracao_funcao PONTO_E_VIRGULA
+;
+
+// Regra 12
+declaracao_procedimento:
+	PROCEDURE { isSubRoutine = 1; }
+	IDENT
+	{
+		declaredProcedures++;
+      pushTagsStack(&tagsTable, rotulo);
+		rotulo++;
+      pushTagsStack(&tagsTable, rotulo);
+		rotulo++;
+
+
+      int rot0 = popTagsStack(&tagsTable);
+      int rot1 = popTagsStack(&tagsTable);
+
+      sprintf(labelSubroutineEnd, "R%d", rot0);
+      sprintf(labelSubroutineEnd, "R%d", rot1);
+      
+		// Soh imprime no primeiro pois desvia pra main
+		if(declaredProcedures == 1) {
+			// Imprime rotulo de saida da subrotina
+         sprintf(command, "DSVS R%d", rot1);
+         geraCodigo(NULL, command);
+		}
+
+		// Imprime rotulo de entrada da subrotina
+      sprintf(command, "ENPR R%d", rot0);
+		lexicalLevel++; // Lexical level is elevated on subroutine
+		sprintf(varLexDisp, "%d", lexicalLevel);
+		strcat(command, varLexDisp);
+		geraCodigo(NULL, command); 
+
+		newInput = createSimpleProcedureInput(token, labelSubroutineStart, lexicalLevel, 0);
+		push(&symbolsTable, newInput);
+	}
+	{ newParams = 0; } parametros_formais_vazio PONTO_E_VIRGULA
+	{
+		// Zera para ser utilizado na subrotina
+		// Mas salva valor para ser recuperado
+		oldVars = num_vars;
+		num_vars = 0;
+		displacement = 0;
+	}
+	bloco
+	{
+		// DMEM nas variaveis do procedimento
+		pop(&symbolsTable, num_vars);
+		strcpy(command,"DMEM ");
+		sprintf(totalVars, "%d", num_vars);
+		strcat(command, totalVars);
+		geraCodigo(NULL, command);
+		
+		// Pega procedimento para printar infos da saida dele
+		destinyVariable = getNth(&symbolsTable, num_parameter + 1);
+		if(destinyVariable == NULL) {
+			printf("Procedimento nao encontrado na tabela de simbolos.\n");
+			exit(1);
+		}
+
+		sprintf(command, "RTPR %d, %d", destinyVariable->lexicalLevel, destinyVariable->numParams);
+		pop(&symbolsTable, num_parameter); // Removes parameters from symbols table
+
+		newParams = 0;
+		//strcat(command, totalVars);
+		geraCodigo(NULL, command);
+		lexicalLevel--; // Lexical level is decremented on subroutine end
+
+		destinyVariable = NULL; // Libera variavel destino
+		num_vars = oldVars;    // Restabelece numero de variaveis no nivel lexico
+		isSubRoutine = 0;
+	}
+;
+
+parametros_formais_vazio:
+	parametros_formais
+	| ;
+;
+
+// Regra 13
+declaracao_funcao:
+    FUNCTION { isSubRoutine = 1; }
+	IDENT
+	{
+		declaredProcedures++;
+      pushTagsStack(&tagsTable, rotulo);
+		rotulo++;
+      pushTagsStack(&tagsTable, rotulo);
+		rotulo++;
+
+      int rot0 = popTagsStack(&tagsTable);
+      int rot1 = popTagsStack(&tagsTable);
+
+      sprintf(labelSubroutineEnd, "R%d", rot0);
+      sprintf(labelSubroutineEnd, "R%d", rot1);
+
+		// Soh imprime no primeiro pois desvia pra main
+		if(declaredProcedures == 1) {
+			// Imprime rotulo de saida da subrotina
+         sprintf(command, "DSVS R%d", rot1);
+         geraCodigo(NULL, command);
+		}
+
+		// Imprime rotulo de entrada da subrotina
+      sprintf(command, "ENPR R%d", rot0);
+		lexicalLevel++; // Lexical level is elevated on subroutine
+		sprintf(varLexDisp, "%d", lexicalLevel);
+		strcat(command, varLexDisp);
+		geraCodigo(NULL, command);
+
+		strcpy(functionIdentifier, token);
+		newParams = 0;
+		newInput = createSimpleFunctionInput(functionIdentifier, labelSubroutineStart, lexicalLevel, 0, undefined);
+		push(&symbolsTable, newInput);
+	}
+	{ newParams = 0; } parametros_formais_vazio
+	DOIS_PONTOS tipo_funcao
+	{
+		// Updates paramters and return type
+		newInput = search(&symbolsTable, functionIdentifier);
+		newInput->numParams = newParams;
+		newInput->type = returnType;
+		newInput->displacement = -4 - newParams;
+	}
+	PONTO_E_VIRGULA
+	{
+		// Zera para ser utilizado na subrotina
+		// Mas salva valor para ser recuperado
+		oldVars = num_vars;
+		num_vars = 0;
+		displacement = 0;
+	}
+	bloco
+	{
+		// DMEM nas variaveis do procedimento
+		pop(&symbolsTable, num_vars);
+		strcpy(command,"DMEM ");
+		sprintf(totalVars, "%d", num_vars);
+		strcat(command, totalVars);
+		geraCodigo(NULL, command);
+		
+		// Pega procedimento para printar infos da saida dele
+		destinyVariable = getNth(&symbolsTable, num_parameter + 1);
+		if(destinyVariable == NULL) {
+			printf("Procedimento nao encontrado na tabela de simbolos.\n");
+			exit(1);
+		}
+
+		sprintf(command, "RTPR %d, %d", destinyVariable->lexicalLevel, destinyVariable->numParams);
+		geraCodigo(NULL, command);
+
+		pop(&symbolsTable, num_parameter); // Removes parameters from symbols table
+		newParams = 0;
+		lexicalLevel--; // Lexical level is decremented on subroutine end
+
+		destinyVariable = NULL; // Libera variavel destino
+		num_vars = oldVars;    // Restabelece numero de variaveis no nivel lexico
+		isSubRoutine = 0;
+	}
+;
+
+tipo_funcao:
+	INTEGER { returnType = integer; }
+;
+
+
+// Regra 14
+parametros_formais:
+	ABRE_PARENTESES { num_parameter = 0; }
+	lista_parametros_formais
+	FECHA_PARENTESES
+	{
+		updateParams(getNth(&symbolsTable, num_parameter + 1),
+								&symbolsTable, num_parameter);
+	}
+;
+
+lista_parametros_formais:
+	lista_parametros_formais PONTO_E_VIRGULA secao_parametros_formais
+	| { newParams++; } secao_parametros_formais
+;
+
+// Regra 15
+secao_parametros_formais:
+   	{ num_parameter++; } var_vazio { nova_var = 0; } lista_idents DOIS_PONTOS tipo
+;
+
+var_vazio:
+   	VAR { receivingByReference = 1; } | 
 ;
 
 // REGRA 16
@@ -164,6 +380,46 @@ atribuicao:
 ;
 
 chama_procedimento:
+    {
+		insideProcedure = 1;
+		// Imprime rotulo de entrada da subrotina
+		currentProcedure = destinyVariable;
+		strcpy(callProcedure, "CHPR ");
+		strcat(callProcedure, destinyVariable->label);
+		sprintf(varLexDisp, ",%d", lexicalLevel);
+		strcat(callProcedure, varLexDisp);
+   	}
+	ABRE_PARENTESES {  receivingFormalParams = 1; newParams = 0; }
+	lista_expressoes_ou_vazio
+	FECHA_PARENTESES
+	{ 
+		insideProcedure = 0;
+		geraCodigo(NULL, callProcedure); 
+		receivingFormalParams = 0;
+	}
+	{ destinyVariable = NULL; }
+	|
+	{
+		insideProcedure = 1;
+		currentProcedure = destinyVariable;
+		// Imprime rotulo de entrada da subrotina
+		strcpy(callProcedure, "CHPR ");
+		strcat(callProcedure, destinyVariable->label);
+		sprintf(varLexDisp, ",%d", lexicalLevel);
+		strcat(callProcedure, varLexDisp);
+
+		destinyVariable = NULL;
+	}
+	{ 
+		insideProcedure = 0;
+    	geraCodigo(NULL, callProcedure); 
+	}
+;
+
+lista_expressoes_ou_vazio: 
+	lista_expressoes
+	| 
+;
 
 //REGRA 22
 comando_condicional:
@@ -338,6 +594,14 @@ fator:
    	variavel %prec NADA
 	{
 		if(loadedVariable != NULL) {
+			if(loadedVariable->category == function) {
+				strcpy(callProcedure, "CHPR ");
+				strcat(callProcedure, loadedVariable->label);
+				sprintf(varLexDisp, ", %d", lexicalLevel);
+				strcat(callProcedure, varLexDisp);
+				geraCodigo(NULL, callProcedure);
+			}
+			else {
 				strcpy(command, "CRVL ");
 				sprintf(varLexDisp, "%d, ", loadedVariable->lexicalLevel);
 				strcat(command, varLexDisp);
@@ -345,8 +609,17 @@ fator:
 				loadedVariable = NULL;
 				strcat(command, varLexDisp);
 				geraCodigo(NULL, command);
+			}
 		}
 		else {
+			if(destinyVariable->category == function) {
+				strcpy(callProcedure, "CHPR ");
+				strcat(callProcedure, destinyVariable->label);
+				sprintf(varLexDisp, ", %d", lexicalLevel);
+				strcat(callProcedure, varLexDisp);
+				geraCodigo(NULL, callProcedure);
+			}
+			else {
 				strcpy(command, "CRVL ");
 				sprintf(varLexDisp, "%d, ", destinyVariable->lexicalLevel);
 				strcat(command, varLexDisp);
@@ -354,13 +627,29 @@ fator:
 				destinyVariable = NULL;
 				strcat(command, varLexDisp);
 				geraCodigo(NULL, command);
+			}
 		}
 	}
 	| variavel ABRE_PARENTESES
 	{
+		if(loadedVariable != NULL) {
+			if(loadedVariable->category == function) {
+				currentProcedure = loadedVariable;
+			}
+		}
+		else {
+			if(destinyVariable->category == function) {
+				currentProcedure = destinyVariable;
+			}
+		}
 	}
 	lista_expressoes FECHA_PARENTESES
 	{ 
+		strcpy(callProcedure, "CHPR ");
+		strcat(callProcedure, currentProcedure->label);
+		sprintf(varLexDisp, ",%d", lexicalLevel);
+		strcat(callProcedure, varLexDisp);
+		geraCodigo(NULL, callProcedure);
 	}
 	| numero
 	| ABRE_PARENTESES expressao FECHA_PARENTESES
@@ -370,10 +659,7 @@ fator:
 // Regra 30
 variavel:
    	IDENT {
-      
 		// If null, looks for left side of atribution
-      fprintf(stdout, "DESTINO: %s \n", token);
-
 		if(destinyVariable == NULL) {
 			destinyVariable = search(&symbolsTable, token);
 			if(destinyVariable == NULL) {

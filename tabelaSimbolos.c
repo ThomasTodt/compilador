@@ -43,6 +43,27 @@ stackNode* search(symbolsStack *symbolsTable, char *identifier) {
     return node;
 }
 
+stackNode* getTop(symbolsStack *symbolsTable) {
+    if(emptyStack(symbolsTable)) {
+        puts("Pilha vazia");
+        return NULL;
+    }
+    
+    return symbolsTable->top;
+}
+
+stackNode* getNth(symbolsStack *symbolsTable, int n) {
+	if(emptyStack(symbolsTable) || symbolsTable->size < n) {
+			puts("Pilha vazia ou de tamanho insuficiente");
+			return NULL;
+	}
+	stackNode *node = symbolsTable->top;
+	if (!n) n++;
+	while (--n)
+		node = node->next;
+	return node;
+}
+
 void pop(symbolsStack *symbolsTable, int n) {
     if(emptyStack(symbolsTable)) {
         puts("Pilha vazia");
@@ -70,6 +91,89 @@ stackNode* createSimpleVarInput(char *identifier, int lexicalLevel, int displace
     newNode->displacement = displacement;
     
     return newNode;
+}
+
+void updateParams(stackNode *p, symbolsStack *symbolsTable, int parameterCount) {
+	if (symbolsTable->size < parameterCount)
+		puts("Pilha não tem elementos o suficiente");
+	p->numParams = parameterCount;
+	p->params = (paramDesc*)malloc(parameterCount * sizeof(paramDesc));
+	stackNode *aux = symbolsTable->top;
+	for (int i = 0; i < parameterCount; i++) {
+		p->params[i].identifier = (char*)malloc(strlen(aux->identifier)*sizeof(char));
+		strcpy(p->params[i].identifier, aux->identifier);
+		p->params[i].type = aux->type;
+		p->params[i].pass = aux->pass;
+		aux->displacement = -4-i;
+		aux = aux->next;
+	}
+	aux->numParams = parameterCount;
+}
+
+stackNode* createSimpleFunctionInput(char *identifier, char *label, int lexicalLevel, int numParams, pascalType returnType) {
+    stackNode *newNode = (stackNode*)malloc(sizeof(stackNode));
+
+    newNode->identifier = (char*)malloc(strlen(identifier) * sizeof(char));
+    strcpy(newNode->identifier, identifier);
+
+    newNode->label = (char*)malloc(strlen(label) * sizeof(char));
+    strcpy(newNode->label, label);
+    
+    newNode->category = function;
+    newNode->lexicalLevel = lexicalLevel;
+	newNode->displacement = -4-numParams;
+    newNode->numParams = numParams;
+	newNode->params = NULL;
+	newNode->type = returnType;
+
+    return newNode;
+}
+
+stackNode* createSimpleProcedureInput(char *identifier, char *label, int lexicalLevel, int numParams) {
+    stackNode *newNode = (stackNode*)malloc(sizeof(stackNode));
+
+    newNode->identifier = (char*)malloc(strlen(identifier) * sizeof(char));
+    strcpy(newNode->identifier, identifier);
+
+    newNode->label = (char*)malloc(strlen(label) * sizeof(char));
+    strcpy(newNode->label, label);
+    
+    newNode->category = procedure;
+    newNode->lexicalLevel = lexicalLevel;
+    newNode->numParams = numParams;
+    newNode->params = NULL;
+
+    return newNode;
+}
+
+stackNode* createSimpleFormalParameterInput(char *identifier, int lexicalLevel, int displacement, passType pass) {
+    stackNode *newNode = (stackNode*)malloc(sizeof(stackNode));
+
+    newNode->identifier = (char*)malloc(strlen(identifier) * sizeof(char));
+    strcpy(newNode->identifier, identifier);
+    
+    newNode->category = formalParameter;
+    newNode->lexicalLevel = lexicalLevel;
+		newNode->displacement = displacement;
+		newNode->pass = pass;
+		newNode->type = undefined;
+
+    return newNode;
+}
+
+void setTypes(symbolsStack *symbolsTable, pascalType type, int n) {
+    if(emptyStack(symbolsTable)) {
+        puts("Pilha vazia");
+        exit(1);
+    }
+
+    int i = 0;
+    stackNode *aux = symbolsTable->top;
+    while((i < n) && (aux != NULL)) {
+        aux->type = type;
+        aux = aux->next;
+        i++;
+    }
 }
 
 

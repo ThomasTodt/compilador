@@ -1,12 +1,10 @@
      INPP
-     AMEM 2
+     AMEM 3
      LEIT
      ARMZ 0, 1
-     CRCT 0
+     CRCT 1
      ARMZ 0, 0
-R0: NADA 
      CRVL 0, 0
-     CRVL 0, 1
-     CMME
-     DSVF R1
-     CRVL 0, 0
+     IMPR
+     DMEM 3
+     PARA
