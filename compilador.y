@@ -18,7 +18,7 @@ int num_vars, nova_var, displacement, lexicalLevel, rotulo;
 int pureExpression, declaredProcedures, newParams, oldVars, num_parameter,insideProcedure;
 int isSubRoutine, receivingByReference, receivingFormalParams;
 char totalVars[16], command[20], varLexDisp[12], relacaoUsada[5], callProcedure[20];
-char *labelSubroutineEnd, *labelSubroutineStart ;
+char labelSubroutineEnd[10], labelSubroutineStart[10] ;
 char functionIdentifier[30];
 pascalType returnType;
 
@@ -171,6 +171,7 @@ declaracao_procedimento:
 
       sprintf(labelSubroutineEnd, "R%d", rot0);
       sprintf(labelSubroutineEnd, "R%d", rot1);
+
       
 		// Soh imprime no primeiro pois desvia pra main
 		if(declaredProcedures == 1) {
