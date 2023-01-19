@@ -47,11 +47,23 @@ tagsStack tagsTable;
 %%
 
 // REGRA 1
-programa    :{
-               geraCodigo (NULL, "INPP");
-             }
-             PROGRAM IDENT
-             ABRE_PARENTESES lista_idents FECHA_PARENTESES PONTO_E_VIRGULA
+
+programa_header:
+				 inicia
+				 PROGRAM IDENT
+				 ABRE_PARENTESES lista_idents FECHA_PARENTESES PONTO_E_VIRGULA
+				 programa
+				 | inicia 
+				 PROGRAM IDENT PONTO_E_VIRGULA 
+				 programa
+;
+
+inicia      : {
+			    geraCodigo (NULL, "INPP");
+		    }
+;
+
+programa    :
              bloco PONTO {
                strcpy(command,"DMEM ");
                sprintf(totalVars, "%d", num_vars);
@@ -422,53 +434,87 @@ lista_expressoes_ou_vazio:
 ;
 
 //REGRA 22
+// comando_condicional:
+//       IF ABRE_PARENTESES expressao FECHA_PARENTESES
+// 	  {
+// 		sprintf(command, "DSVF R%d", rotulo);
+
+// 		pushTagsStack(&tagsTable, rotulo);
+// 		rotulo += 1;
+		
+// 		geraCodigo(NULL, command);
+// 	  } 
+// 	  THEN comando_sem_rotulo
+// 	  {
+// 		int rot0 = popTagsStack(&tagsTable);
+// 		sprintf(command, "R%d", rotulo);
+// 		geraCodigo(command, "NADA");
+// 	  }
+// 	  | IF ABRE_PARENTESES expressao FECHA_PARENTESES
+// 	  {
+// 		sprintf(command, "DSVF R%d", rotulo);
+
+// 		pushTagsStack(&tagsTable, rotulo);
+//         pushTagsStack(&tagsTable, rotulo+1);
+// 		rotulo += 2;
+		
+// 		geraCodigo(NULL, command);
+// 	  } 
+// 	  THEN comando_sem_rotulo
+// 	  {
+// 		int rot1 = popTagsStack(&tagsTable);
+// 		sprintf(command, "DSVS R%d", rot1);
+//         geraCodigo(NULL, command);
+
+// 		int rot0 = popTagsStack(&tagsTable);
+// 		sprintf(command, "R%d", rotulo);
+// 		geraCodigo(command, "NADA");
+// 	  }
+// 	  ELSE comando_sem_rotulo
+// ;
+
 comando_condicional:
-      if_then cond_else
-      {
-         int rot1 = popTagsStack(&tagsTable);
-         sprintf(command, "R%d", rot1);
-         geraCodigo(command, "NADA");
-      }
-;
+      IF ABRE_PARENTESES expressao FECHA_PARENTESES
+	  {
+		sprintf(command, "DSVF R%d", rotulo);
 
-if_then:
-      IF ABRE_PARENTESES expressao FECHA_PARENTESES 
-      {
-         sprintf(command, "DSVF R%d", rotulo);
-         geraCodigo(NULL, command);
-
-         pushTagsStack(&tagsTable, rotulo+1);
-         pushTagsStack(&tagsTable, rotulo);
-         pushTagsStack(&tagsTable, rotulo+1);
-         rotulo += 2;
-      }
-      THEN comando_sem_rotulo
-      {
-         int rot1 = popTagsStack(&tagsTable);
-         sprintf(command, "DSVS R%d", rot1);
-         geraCodigo(NULL, command);
-
-         int rot0 = popTagsStack(&tagsTable);
-         sprintf(command, "R%d", rot0);
-         geraCodigo(command, "NADA");
-
-      } 
-      // ELSE comando_sem_rotulo
-      // {
-      //    int rot1 = popTagsStack(&tagsTable);
-      //    sprintf(command, "R%d", rot1);
-      //    geraCodigo(command, "NADA");
-      // }
+		pushTagsStack(&tagsTable, rotulo+1);
+		pushTagsStack(&tagsTable, rotulo);
+		pushTagsStack(&tagsTable, rotulo+1);
+		rotulo += 2;
+		
+		geraCodigo(NULL, command);
+	  } 
+	  THEN comando_sem_rotulo cond_else
 ;
 
 cond_else: 
-         ELSE comando_sem_rotulo
+		 {
+			int rot1 = popTagsStack(&tagsTable);
+			sprintf(command, "DSVS R%d", rot1);
+			geraCodigo(NULL, command);
+		 }
+         ELSE
          {
-            int rot1 = popTagsStack(&tagsTable);
-            sprintf(command, "R%d", rot1);
+            int rot0 = popTagsStack(&tagsTable);
+            sprintf(command, "R%d", rot0);
             geraCodigo(command, "NADA");
          }
+		 comando_sem_rotulo
+		 {
+			int rot1 = popTagsStack(&tagsTable);
+			sprintf(command, "R%d", rot1);
+			geraCodigo(command, "NADA");
+		 }
          | %prec LOWER_THAN_ELSE 
+		 {
+			popTagsStack(&tagsTable);
+			int rot1 = popTagsStack(&tagsTable);
+			sprintf(command, "R%d", rot1);
+			geraCodigo(command, "NADA");
+			popTagsStack(&tagsTable);
+		 }
+;
 
 
 //REGRA 23
@@ -584,7 +630,7 @@ termo:
 
 lista_fator:
 	{ pureExpression = 0; } ASTERISCO fator { typeVerify(&typesTable, "multiplicacao"); geraCodigo(NULL, "MULT"); }
-	| { pureExpression = 0; } BARRA fator { typeVerify(&typesTable, "divisao"); geraCodigo(NULL, "DIVI"); }
+	| { pureExpression = 0; } DIV fator { typeVerify(&typesTable, "divisao"); geraCodigo(NULL, "DIVI"); }
 	| { pureExpression = 0; } AND fator { typeVerify(&typesTable, "and"); geraCodigo(NULL, "CONJ"); }
 ;
 
