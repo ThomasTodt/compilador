@@ -79,7 +79,7 @@ bloco       :
                parte_declara_sub_rotinas
                   {
                      if(declaredProcedures > 0 && lexicalLevel == 0) {
-                        int rot1 = topTagsStack(&tagsTable);
+                        int rot1 = popTagsStack(&tagsTable);
                         sprintf(command, "R%d", rot1);
                         geraCodigo(command, "NADA");
                      }
@@ -164,28 +164,29 @@ declaracao_procedimento:
 		rotulo++;
       pushTagsStack(&tagsTable, rotulo);
 		rotulo++;
+	  pushTagsStack(&tagsTable, rotulo-2);
 
 
       int rot0 = popTagsStack(&tagsTable);
       int rot1 = popTagsStack(&tagsTable);
 
       sprintf(labelSubroutineEnd, "R%d", rot0);
-      sprintf(labelSubroutineEnd, "R%d", rot1);
+      sprintf(labelSubroutineStart, "R%d", rot1);
 
       
 		// Soh imprime no primeiro pois desvia pra main
 		if(declaredProcedures == 1) {
 			// Imprime rotulo de saida da subrotina
-         sprintf(command, "DSVS R%d", rot1);
+         sprintf(command, "DSVS R%d", rot0);
          geraCodigo(NULL, command);
 		}
 
 		// Imprime rotulo de entrada da subrotina
-      sprintf(command, "ENPR R%d", rot0);
+        sprintf(command, "ENPR ");
 		lexicalLevel++; // Lexical level is elevated on subroutine
 		sprintf(varLexDisp, "%d", lexicalLevel);
 		strcat(command, varLexDisp);
-		geraCodigo(NULL, command); 
+		geraCodigo(labelSubroutineStart, command); 
 
 		newInput = createSimpleProcedureInput(token, labelSubroutineStart, lexicalLevel, 0);
 		push(&symbolsTable, newInput);
@@ -222,6 +223,10 @@ declaracao_procedimento:
 		geraCodigo(NULL, command);
 		lexicalLevel--; // Lexical level is decremented on subroutine end
 
+		// int rot0 = popTagsStack(&tagsTable);
+		// sprintf(command, "R%d", rot0);
+		// geraCodigo(command, "NADA");
+
 		destinyVariable = NULL; // Libera variavel destino
 		num_vars = oldVars;    // Restabelece numero de variaveis no nivel lexico
 		isSubRoutine = 0;
@@ -248,7 +253,7 @@ declaracao_funcao:
       int rot1 = popTagsStack(&tagsTable);
 
       sprintf(labelSubroutineEnd, "R%d", rot0);
-      sprintf(labelSubroutineEnd, "R%d", rot1);
+      sprintf(labelSubroutineStart, "R%d", rot1);
 
 		// Soh imprime no primeiro pois desvia pra main
 		if(declaredProcedures == 1) {
