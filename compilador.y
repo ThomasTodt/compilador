@@ -138,9 +138,21 @@ lista_id_var: lista_id_var VIRGULA IDENT
       }
 ;
 
-// REGRA 9
-lista_idents: lista_idents VIRGULA IDENT
-            | IDENT
+// REGRA 10
+lista_idents: 
+   	lista_idents VIRGULA IDENT
+	{
+		nova_var++;
+		newInput = createSimpleFormalParameterInput(token, lexicalLevel, 1, receivingByReference ? reference : value);
+		push(&symbolsTable, newInput);
+	}
+   	| IDENT
+	{
+		nova_var++;
+		newInput = createSimpleFormalParameterInput(token, lexicalLevel, 1, receivingByReference ? reference : value);
+		push(&symbolsTable, newInput);
+	}
+;
 ;
 
 // REGRA 11
@@ -248,6 +260,7 @@ declaracao_funcao:
 		rotulo++;
       pushTagsStack(&tagsTable, rotulo);
 		rotulo++;
+	  pushTagsStack(&tagsTable, rotulo-2);
 
       int rot0 = popTagsStack(&tagsTable);
       int rot1 = popTagsStack(&tagsTable);
@@ -258,16 +271,16 @@ declaracao_funcao:
 		// Soh imprime no primeiro pois desvia pra main
 		if(declaredProcedures == 1) {
 			// Imprime rotulo de saida da subrotina
-         sprintf(command, "DSVS R%d", rot1);
+         sprintf(command, "DSVS R%d", rot0);
          geraCodigo(NULL, command);
 		}
 
 		// Imprime rotulo de entrada da subrotina
-      sprintf(command, "ENPR R%d", rot0);
+        sprintf(command, "ENPR ");
 		lexicalLevel++; // Lexical level is elevated on subroutine
 		sprintf(varLexDisp, "%d", lexicalLevel);
 		strcat(command, varLexDisp);
-		geraCodigo(NULL, command);
+		geraCodigo(labelSubroutineStart, command); 
 
 		strcpy(functionIdentifier, token);
 		newParams = 0;
