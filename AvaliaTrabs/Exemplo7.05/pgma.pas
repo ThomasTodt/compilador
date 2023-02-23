@@ -3,7 +3,7 @@ var m,n :  integer;
 function f ( n : integer; var k:integer ) : integer;
 var p, q : integer;
 begin    
-   if n<2 then
+   if (n<2) then
       begin 
          f:=n; k:=0
       end

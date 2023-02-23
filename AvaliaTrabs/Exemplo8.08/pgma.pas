@@ -6,14 +6,14 @@ var x, y :  integer;
       var s :  integer;
       begin
          s:=z-1; x:=x-1;
-         if s=1
+         if (s=1)
             then  p
             else y:=1;
          y:=y*s
       end;
    begin
       z:=x; x:=x-1;
-      if z>1
+      if (z>1)
          then p
          else y:=1;
       y:=y*z

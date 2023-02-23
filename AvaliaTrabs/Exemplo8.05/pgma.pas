@@ -5,7 +5,7 @@ var n, k      : integer;
 begin
    read(n);
    f1:=0; f2:=0; k:=1;
-   while k<=n do
+   while (k<=n) do
    begin
       f3:=f1+f2;
       f1:=f2;

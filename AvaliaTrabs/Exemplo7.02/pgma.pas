@@ -4,7 +4,7 @@ var n, s, i :  integer;
    var q : integer;
    begin
       q:=i*i;
-      if (i div 2) * 2 = i
+      if ((i div 2) * 2 = i)
       then
          s:=s+q
       else
@@ -13,7 +13,7 @@ var n, s, i :  integer;
 begin
    read (n);
    s:=0; i:=0;
-   while i<=n do
+   while (i<=n) do
    begin
       soma; write(s); i:=i+1
    end
