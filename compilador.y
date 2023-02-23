@@ -15,14 +15,15 @@
 #include "tabelaRotulos.h"
 
 int num_vars, nova_var, displacement, lexicalLevel, rotulo;
-int pureExpression, declaredProcedures, newParams, oldVars, num_parameter,insideProcedure;
+int pureExpression, newParams, oldVars, num_parameter,insideProcedure;
 int isSubRoutine, receivingByReference, receivingFormalParams;
 char totalVars[16], command[20], varLexDisp[12], relacaoUsada[5], callProcedure[20];
 char labelSubroutineEnd[10], labelSubroutineStart[10] ;
 char functionIdentifier[30];
+int declaredProcedures = 0;
 pascalType returnType;
 
-stackNode *newInput, *destinyVariable, *loadedVariable, *paramNode, *currentProcedure, *currentParameter;
+stackNode *newInput, *destinyVariable, *loadedVariable, *currentProcedure;
 symbolsStack symbolsTable;
 typesStack typesTable;
 tagsStack tagsTable;
@@ -80,7 +81,7 @@ bloco       :
                   {
                      if(declaredProcedures > 0 && lexicalLevel == 0) {
                         int rot1 = popTagsStack(&tagsTable);
-                        sprintf(command, "R%d", rot1);
+                        sprintf(command, "R0%d", rot1);
                         geraCodigo(command, "NADA");
                      }
                   }
@@ -89,7 +90,7 @@ bloco       :
 
 // REGRA 8
 parte_declara_vars:  var{
-      strcpy(command,"AMEM ");
+      	strcpy(command,"AMEM ");
 		sprintf(totalVars, "%d", num_vars);
 		strcat(command, totalVars);
 		geraCodigo(NULL, command); 
@@ -182,15 +183,15 @@ declaracao_procedimento:
       int rot0 = popTagsStack(&tagsTable);
       int rot1 = popTagsStack(&tagsTable);
 
-      sprintf(labelSubroutineEnd, "R%d", rot0);
-      sprintf(labelSubroutineStart, "R%d", rot1);
+      sprintf(labelSubroutineEnd, "R0%d", rot0);
+      sprintf(labelSubroutineStart, "R0%d", rot1);
 
       
 		// Soh imprime no primeiro pois desvia pra main
 		if(declaredProcedures == 1) {
 			// Imprime rotulo de saida da subrotina
-         sprintf(command, "DSVS R%d", rot0);
-         geraCodigo(NULL, command);
+			sprintf(command, "DSVS R0%d", rot0);
+			geraCodigo(NULL, command);
 		}
 
 		// Imprime rotulo de entrada da subrotina
@@ -255,6 +256,7 @@ declaracao_funcao:
     FUNCTION { isSubRoutine = 1; }
 	IDENT
 	{
+		nova_var++;	
 		declaredProcedures++;
       pushTagsStack(&tagsTable, rotulo);
 		rotulo++;
@@ -265,13 +267,13 @@ declaracao_funcao:
       int rot0 = popTagsStack(&tagsTable);
       int rot1 = popTagsStack(&tagsTable);
 
-      sprintf(labelSubroutineEnd, "R%d", rot0);
-      sprintf(labelSubroutineStart, "R%d", rot1);
+      sprintf(labelSubroutineEnd, "R0%d", rot0);
+      sprintf(labelSubroutineStart, "R0%d", rot1);
 
 		// Soh imprime no primeiro pois desvia pra main
 		if(declaredProcedures == 1) {
 			// Imprime rotulo de saida da subrotina
-         sprintf(command, "DSVS R%d", rot0);
+         sprintf(command, "DSVS R0%d", rot0);
          geraCodigo(NULL, command);
 		}
 
@@ -294,7 +296,7 @@ declaracao_funcao:
 		newInput = search(&symbolsTable, functionIdentifier);
 		newInput->numParams = newParams;
 		newInput->type = returnType;
-		newInput->displacement = -4 - newParams;
+		newInput->displacement = -5 - newParams;
 	}
 	PONTO_E_VIRGULA
 	{
@@ -371,7 +373,7 @@ comando_composto: T_BEGIN comandos T_END
 comandos: comandos PONTO_E_VIRGULA comando | comando
 ;
 
-comando: comando_sem_rotulo | numero_ou_nada
+comando: numero_ou_nada comando_sem_rotulo 
 ;
 
 numero_ou_nada: numero DOIS_PONTOS | 
@@ -400,7 +402,10 @@ atribuicao:
 	ATRIBUICAO expressao
 	{
 		typeVerify(&typesTable, "atribuicao");
-		strcpy(command,"ARMZ ");
+		if(destinyVariable->pass == 0)
+			strcpy(command,"ARMZ ");
+		else
+			strcpy(command,"ARMI ");
 		sprintf(varLexDisp, "%d, ", destinyVariable->lexicalLevel);
 		strcat(command, varLexDisp);
 		sprintf(varLexDisp, "%d", destinyVariable->displacement);
@@ -417,7 +422,7 @@ chama_procedimento:
 		currentProcedure = destinyVariable;
 		strcpy(callProcedure, "CHPR ");
 		strcat(callProcedure, destinyVariable->label);
-		sprintf(varLexDisp, ",%d", lexicalLevel);
+		sprintf(varLexDisp, ", %d", lexicalLevel);
 		strcat(callProcedure, varLexDisp);
    	}
 	ABRE_PARENTESES {  receivingFormalParams = 1; newParams = 0; }
@@ -436,7 +441,7 @@ chama_procedimento:
 		// Imprime rotulo de entrada da subrotina
 		strcpy(callProcedure, "CHPR ");
 		strcat(callProcedure, destinyVariable->label);
-		sprintf(varLexDisp, ",%d", lexicalLevel);
+		sprintf(varLexDisp, ", %d", lexicalLevel);
 		strcat(callProcedure, varLexDisp);
 
 		destinyVariable = NULL;
@@ -495,7 +500,7 @@ lista_expressoes_ou_vazio:
 comando_condicional:
       IF ABRE_PARENTESES expressao FECHA_PARENTESES
 	  {
-		sprintf(command, "DSVF R%d", rotulo);
+		sprintf(command, "DSVF R0%d", rotulo);
 
 		pushTagsStack(&tagsTable, rotulo+1);
 		pushTagsStack(&tagsTable, rotulo);
@@ -510,26 +515,26 @@ comando_condicional:
 cond_else: 
 		 {
 			int rot1 = popTagsStack(&tagsTable);
-			sprintf(command, "DSVS R%d", rot1);
+			sprintf(command, "DSVS R0%d", rot1);
 			geraCodigo(NULL, command);
 		 }
          ELSE
          {
             int rot0 = popTagsStack(&tagsTable);
-            sprintf(command, "R%d", rot0);
+            sprintf(command, "R0%d", rot0);
             geraCodigo(command, "NADA");
          }
 		 comando_sem_rotulo
 		 {
 			int rot1 = popTagsStack(&tagsTable);
-			sprintf(command, "R%d", rot1);
+			sprintf(command, "R0%d", rot1);
 			geraCodigo(command, "NADA");
 		 }
          | %prec LOWER_THAN_ELSE 
 		 {
 			popTagsStack(&tagsTable);
 			int rot1 = popTagsStack(&tagsTable);
-			sprintf(command, "R%d", rot1);
+			sprintf(command, "R0%d", rot1);
 			geraCodigo(command, "NADA");
 			popTagsStack(&tagsTable);
 		 }
@@ -566,7 +571,7 @@ comando_repetitivo:
 
       WHILE 
       {
-         sprintf(command, "R%d", rotulo);
+         sprintf(command, "R0%d", rotulo);
 
          pushTagsStack(&tagsTable, rotulo);
          pushTagsStack(&tagsTable, rotulo+1);
@@ -577,7 +582,7 @@ comando_repetitivo:
       ABRE_PARENTESES expressao FECHA_PARENTESES 
       {
          int rot1 = topTagsStack(&tagsTable);
-         sprintf(command, "DSVF R%d", rot1);
+         sprintf(command, "DSVF R0%d", rot1);
          geraCodigo(NULL, command);
       }
       DO comando_sem_rotulo
@@ -585,10 +590,10 @@ comando_repetitivo:
          int rot1 = popTagsStack(&tagsTable);
          int rot0 = popTagsStack(&tagsTable);
 
-         sprintf(command, "DSVS R%d", rot0);
+         sprintf(command, "DSVS R0%d", rot0);
          geraCodigo(NULL, command);
 
-         sprintf(command, "R%d", rot1);
+         sprintf(command, "R0%d", rot1);
          geraCodigo(command, "NADA");
       }
 ;
@@ -598,8 +603,7 @@ lista_expressoes: expressao | expressao VIRGULA lista_expressoes;
 
 //REGRA 25
 expressao:
-      
-   	{ } expressao_simples relacao_exp_simples_vazio 
+   	{ newParams++; } expressao_simples relacao_exp_simples_vazio 
 ;
 
 relacao_exp_simples_vazio:
@@ -667,7 +671,20 @@ fator:
 				geraCodigo(NULL, callProcedure);
 			}
 			else {
-				strcpy(command, "CRVL ");
+				//fprintf(stdout, "TIPO: %d - PASSAGEM: %d \n", loadedVariable->category, loadedVariable->pass);
+				if (loadedVariable->category == 0){
+					if(loadedVariable->pass == 0){
+						strcpy(command, "CRVL ");
+					}
+					else
+						strcpy(command, "CRVL ");
+				} else {
+					if(loadedVariable->pass == 0)
+						strcpy(command, "CRVL ");
+					else
+						strcpy(command, "CRVI ");
+				}
+
 				sprintf(varLexDisp, "%d, ", loadedVariable->lexicalLevel);
 				strcat(command, varLexDisp);
 				sprintf(varLexDisp, "%d", loadedVariable->displacement);
@@ -685,7 +702,19 @@ fator:
 				geraCodigo(NULL, callProcedure);
 			}
 			else {
-				strcpy(command, "CRVL ");
+				
+				if (destinyVariable->category == 0){
+					if(destinyVariable->pass == 0){
+						strcpy(command, "CRVL ");
+					}
+					else
+						strcpy(command, "CRVL ");
+				} else {
+					if(destinyVariable->pass == 0)
+						strcpy(command, "CRVL ");
+					else
+						strcpy(command, "CRVI ");
+				}
 				sprintf(varLexDisp, "%d, ", destinyVariable->lexicalLevel);
 				strcat(command, varLexDisp);
 				sprintf(varLexDisp, "%d", destinyVariable->displacement);
@@ -712,7 +741,7 @@ fator:
 	{ 
 		strcpy(callProcedure, "CHPR ");
 		strcat(callProcedure, currentProcedure->label);
-		sprintf(varLexDisp, ",%d", lexicalLevel);
+		sprintf(varLexDisp, ", %d", lexicalLevel);
 		strcat(callProcedure, varLexDisp);
 		geraCodigo(NULL, callProcedure);
 	}

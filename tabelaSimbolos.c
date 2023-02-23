@@ -25,10 +25,10 @@ stackNode* search(symbolsStack *symbolsTable, char *identifier) {
     int hasFound = 0;
 
     node = symbolsTable->top;
-    fprintf(stdout, "PROCURANDO POR: %s\n", identifier);
+    // fprintf(stdout, "PROCURANDO POR: %s\n", identifier);
     while(node != NULL) {
         // Returns zero if equal
-        fprintf(stdout, "ATUAL: %s\n", node->identifier);
+        // fprintf(stdout, "ATUAL: %s\n", node->identifier);
         hasFound = !strcmp(node->identifier, identifier);
         if(hasFound) {
             return node;

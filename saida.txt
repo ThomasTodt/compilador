@@ -1,0 +1,106 @@
+program     # program 
+ ident      # exemplo75 
+ abre_parenteses      # ( 
+ ident      # input 
+ virgula      # , 
+ ident      # output 
+ fecha_parenteses     # ) 
+ pt_virgula      # ; 
+var      # var 
+ ident      # m 
+ virgula      # , 
+ ident      # n 
+ dois pontos     # : 
+ pt_virgula      # ; 
+ function     # function 
+ ident      # f 
+ abre_parenteses      # ( 
+ ident      # n 
+ dois pontos     # : 
+ pt_virgula      # ; 
+var      # var 
+ ident      # k 
+ dois pontos     # : 
+ fecha_parenteses     # ) 
+ dois pontos     # : 
+ pt_virgula      # ; 
+var      # var 
+ ident      # p 
+ virgula      # , 
+ ident      # q 
+ dois pontos     # : 
+ pt_virgula      # ; 
+begin     # begin 
+ if     # if 
+ abre_parenteses      # ( 
+ ident      # n 
+ menor     # < 
+ numero     # 2 
+ fecha_parenteses     # ) 
+ then     # then 
+begin     # begin 
+ ident      # f 
+ atribuicao      # := 
+ ident      # n 
+ pt_virgula      # ; 
+ ident      # k 
+ atribuicao      # := 
+ numero     # 0 
+end      # end 
+ else     # else 
+begin     # begin 
+ ident      # f 
+ atribuicao      # := 
+ ident      # f 
+ abre_parenteses      # ( 
+ ident      # n 
+ menos     # - 
+ numero     # 1 
+ virgula      # , 
+ ident      # p 
+ fecha_parenteses     # ) 
+ mais     # + 
+ ident      # f 
+ abre_parenteses      # ( 
+ ident      # n 
+ menos     # - 
+ numero     # 2 
+ virgula      # , 
+ ident      # q 
+ fecha_parenteses     # ) 
+ pt_virgula      # ; 
+ ident      # k 
+ atribuicao      # := 
+ ident      # p 
+ mais     # + 
+ ident      # q 
+ mais     # + 
+ numero     # 1 
+end      # end 
+ pt_virgula      # ; 
+ write     # write 
+ abre_parenteses      # ( 
+ ident      # n 
+ virgula      # , 
+ ident      # k 
+ fecha_parenteses     # ) 
+end      # end 
+ pt_virgula      # ; 
+begin     # begin 
+ ident      # n 
+ atribuicao      # := 
+ ident      # f 
+ abre_parenteses      # ( 
+ numero     # 3 
+ virgula      # , 
+ ident      # m 
+ fecha_parenteses     # ) 
+ pt_virgula      # ; 
+ write     # write 
+ abre_parenteses      # ( 
+ ident      # n 
+ virgula      # , 
+ ident      # m 
+ fecha_parenteses     # ) 
+end      # end 
+ ponto      # . 
