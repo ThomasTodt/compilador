@@ -31,7 +31,7 @@ tagsStack tagsTable;
 %}
 
 
-%token PROGRAM ABRE_PARENTESES FECHA_PARENTESES
+%token PROGRAM ABRE_PARENTESES FECHA_PARENTESES FORWARD
 %token VIRGULA PONTO_E_VIRGULA DOIS_PONTOS PONTO
 %token T_BEGIN T_END VAR IDENT ATRIBUICAO
 %token ABRE_COLCHETES FECHA_COLCHETES ABRE_CHAVES FECHA_CHAVES
@@ -79,6 +79,7 @@ bloco       :
               parte_declara_vars
                parte_declara_sub_rotinas
                   {
+					  
                      if(declaredProcedures > 0 && lexicalLevel == 0) {
                         int rot1 = popTagsStack(&tagsTable);
                         sprintf(command, "R0%d", rot1);
@@ -165,6 +166,7 @@ parte_declara_sub_rotinas:
 opcoes_sub_rotinas:
 	declaracao_procedimento PONTO_E_VIRGULA
 	| declaracao_funcao PONTO_E_VIRGULA
+
 ;
 
 // Regra 12
@@ -212,8 +214,23 @@ declaracao_procedimento:
 		num_vars = 0;
 		displacement = 0;
 	}
-	bloco
+	forward_ou_bloco_proc
+
+;
+
+forward_ou_bloco_proc:
+	// {printf("entei\n");}
 	{
+		rotulo--;}FORWARD 	{
+		rotulo--;
+		rotulo--;
+		rotulo--;
+		lexicalLevel--;
+		destinyVariable = NULL; // Libera variavel destino
+		num_vars = oldVars;    // Restabelece numero de variaveis no nivel lexico
+		isSubRoutine = 0;	
+	}| 
+	bloco	{
 		// DMEM nas variaveis do procedimento
 		pop(&symbolsTable, num_vars);
 		strcpy(command,"DMEM ");
@@ -228,7 +245,7 @@ declaracao_procedimento:
 			exit(1);
 		}
 
-		sprintf(command, "RTPR %d, %d", destinyVariable->lexicalLevel, destinyVariable->numParams);
+		sprintf(command, "RTPR %d, %d", destinyVariable->lexicalLevel, destinyVariable->numParams+1);
 		pop(&symbolsTable, num_parameter); // Removes parameters from symbols table
 
 		newParams = 0;
@@ -244,16 +261,18 @@ declaracao_procedimento:
 		num_vars = oldVars;    // Restabelece numero de variaveis no nivel lexico
 		isSubRoutine = 0;
 	}
-;
+	;
+
 
 parametros_formais_vazio:
 	parametros_formais
 	| ;
 ;
 
+
 // Regra 13
 declaracao_funcao:
-    FUNCTION { isSubRoutine = 1; }
+    FUNCTION { isSubRoutine = 1;}
 	IDENT
 	{
 		nova_var++;	
@@ -306,8 +325,22 @@ declaracao_funcao:
 		num_vars = 0;
 		displacement = 0;
 	}
-	bloco
-	{
+	forward_ou_bloco_funcao
+ 
+;
+
+forward_ou_bloco_funcao:
+	{rotulo--;}
+	FORWARD	{
+		rotulo--;
+		rotulo--;
+		rotulo--;
+		lexicalLevel--;
+		destinyVariable = NULL; // Libera variavel destino
+		num_vars = oldVars;    // Restabelece numero de variaveis no nivel lexico
+		isSubRoutine = 0;
+	}| 
+	bloco	{
 		// DMEM nas variaveis do procedimento
 		pop(&symbolsTable, num_vars);
 		strcpy(command,"DMEM ");
@@ -322,7 +355,7 @@ declaracao_funcao:
 			exit(1);
 		}
 
-		sprintf(command, "RTPR %d, %d", destinyVariable->lexicalLevel, destinyVariable->numParams);
+		sprintf(command, "RTPR %d, %d", destinyVariable->lexicalLevel, destinyVariable->numParams+1);
 		geraCodigo(NULL, command);
 
 		pop(&symbolsTable, num_parameter); // Removes parameters from symbols table
@@ -333,7 +366,7 @@ declaracao_funcao:
 		num_vars = oldVars;    // Restabelece numero de variaveis no nivel lexico
 		isSubRoutine = 0;
 	}
-;
+	;
 
 tipo_funcao:
 	INTEGER { returnType = integer; }
@@ -498,7 +531,20 @@ lista_expressoes_ou_vazio:
 // ;
 
 comando_condicional:
-      IF ABRE_PARENTESES expressao FECHA_PARENTESES
+	//   IF expressao
+	//   {
+	// 	sprintf(command, "DSVF R0%d", rotulo);
+
+	// 	pushTagsStack(&tagsTable, rotulo+1);
+	// 	pushTagsStack(&tagsTable, rotulo);
+	// 	pushTagsStack(&tagsTable, rotulo+1);
+	// 	rotulo += 2;
+		
+	// 	geraCodigo(NULL, command);
+	//   }
+	//   THEN comando_sem_rotulo cond_else
+	//   |
+      IF ABRE_PARENTESES expressao_cond FECHA_PARENTESES
 	  {
 		sprintf(command, "DSVF R0%d", rotulo);
 
@@ -543,31 +589,31 @@ cond_else:
 
 //REGRA 23
 comando_repetitivo: 
-      // WHILE 
-      // {
-      //    sprintf(command, "R%d", rotulo);
-      //    pushTagsStack(&tagsTable, rotulo);
-      //    pushTagsStack(&tagsTable, rotulo+1);
-      //    rotulo += 2;
-      //    geraCodigo(command, "NADA");  
-      // }
-      // expressao 
-      // {
-      //    int rot1 = topTagsStack(&tagsTable);
-      //    sprintf(command, "DSVF R%d", rot1);
-      //    geraCodigo(NULL, command);
-      // }
-      // DO comando_sem_rotulo
-      // {
-      //    int rot1 = popTagsStack(&tagsTable);
-      //    int rot0 = popTagsStack(&tagsTable);
-      //    sprintf(command, "DSVS R%d", rot0);
-      //    geraCodigo(NULL, command);
-      //    sprintf(command, "R%d", rot1);
-      //    geraCodigo(command, "NADA");
-      // }
+    //  WHILE 
+    //  {
+    //     sprintf(command, "R0%d", rotulo);
+    //     pushTagsStack(&tagsTable, rotulo);
+    //     pushTagsStack(&tagsTable, rotulo+1);
+    //     rotulo += 2;
+    //     geraCodigo(command, "NADA");  
+    //  }
+    //  expressao 
+    //  {
+    //     int rot1 = topTagsStack(&tagsTable);
+    //     sprintf(command, "DSVF R0%d", rot1);
+    //     geraCodigo(NULL, command);
+    //  }
+    //  DO comando_sem_rotulo
+    //  {
+    //     int rot1 = popTagsStack(&tagsTable);
+    //     int rot0 = popTagsStack(&tagsTable);
+    //     sprintf(command, "DSVS R0%d", rot0);
+    //     geraCodigo(NULL, command);
+    //     sprintf(command, "R0%d", rot1);
+    //     geraCodigo(command, "NADA");
+    //   }
 
-      // |
+      |
 
       WHILE 
       {
@@ -612,9 +658,23 @@ relacao_exp_simples_vazio:
 		typeVerify(&typesTable, "relacional");
 		geraCodigo(NULL, relacaoUsada);
 	}
+		| 
 ;
 
-	|
+expressao_cond:
+   	{ newParams++; } expressao_simples relacao_exp_simples_cond 
+;
+
+relacao_exp_simples_cond:
+	relacao expressao_simples
+	{ 
+		typeVerify(&typesTable, "relacional");
+		geraCodigo(NULL, relacaoUsada);
+	}
+;
+
+comando_vazio:{fprintf(stdout, "Entrei nessa porra!!!\n");};
+
 // REGRA 26
 relacao:
 	IGUAL { strcpy(relacaoUsada, "CMIG"); } 
@@ -662,33 +722,87 @@ lista_fator:
 fator:
    	variavel %prec NADA
 	{
+		// printf("\t\t\tSEGFAULT\n");
 		if(loadedVariable != NULL) {
 			if(loadedVariable->category == function) {
 				strcpy(callProcedure, "CHPR ");
+				// printf("entrou na 3\n");
 				strcat(callProcedure, loadedVariable->label);
 				sprintf(varLexDisp, ", %d", lexicalLevel);
 				strcat(callProcedure, varLexDisp);
 				geraCodigo(NULL, callProcedure);
 			}
 			else {
-				//fprintf(stdout, "TIPO: %d - PASSAGEM: %d \n", loadedVariable->category, loadedVariable->pass);
-				if (loadedVariable->category == 0){
-					if(loadedVariable->pass == 0){
-						strcpy(command, "CRVL ");
+				// if(currentProcedure)
+				// 	printf("\t\tFUNCAO: %s\n", currentProcedure->identifier);
+				// fprintf(stdout, "\t\tIDENT: %s - TIPO: %d - PASSAGEM: %d \n", loadedVariable->identifier, loadedVariable->category, loadedVariable->pass);
+				// TODO fazer a tabela bonityinha
+				if(!currentProcedure || !currentProcedure->numParams)
+				{
+					// printf("\t\t\tSEGFAULT\n");
+					if (loadedVariable->category == 0){
+						if(loadedVariable->pass == 0)
+							strcpy(command, "CRVL ");
+						else
+							strcpy(command, "CRVL ");
+					} 
+
+					else if (loadedVariable->category == 1){
+						if(loadedVariable->pass == 0)
+							strcpy(command, "CRVL ");
+						else
+							strcpy(command, "CRVI ");
 					}
-					else
-						strcpy(command, "CRVL ");
-				} else {
-					if(loadedVariable->pass == 0)
-						strcpy(command, "CRVL ");
-					else
-						strcpy(command, "CRVI ");
+				}
+				else
+				{
+					int index = 0;
+					// printf("%s\n", loadedVariable->identifier);
+					// printf("%s\n", currentProcedure->params[index].identifier);
+					// printf("%d\n", strcmp(currentProcedure->params[index].identifier, loadedVariable->identifier));
+					if(strcmp(currentProcedure->params[index].identifier, loadedVariable->identifier))
+					{
+						while (!strcmp(currentProcedure->params[index].identifier, loadedVariable->identifier))
+						{
+							index++;
+						}
+					}
+					// printf("\t\t\tVARIAVEL: %s\n", currentProcedure->params[index].identifier);
+					if(currentProcedure->params[index].pass == 0)
+					{
+						if(loadedVariable->category == 0)
+						{
+							strcpy(command, "CRVL ");
+						}
+						else if(loadedVariable->category == 1)
+						{
+							if(loadedVariable->pass == 0)
+								strcpy(command, "CRVL ");
+							else
+								strcpy(command, "CREN ");
+						}
+					}
+					else 
+					{
+						if(loadedVariable->category == 0)
+						{
+							strcpy(command, "CREN ");
+						}
+						else if(loadedVariable->category == 1)
+						{
+							if(loadedVariable->pass == 0)
+								strcpy(command, "CREN ");
+							else
+								strcpy(command, "CRVL ");
+						}
+					}
 				}
 
 				sprintf(varLexDisp, "%d, ", loadedVariable->lexicalLevel);
 				strcat(command, varLexDisp);
 				sprintf(varLexDisp, "%d", loadedVariable->displacement);
 				loadedVariable = NULL;
+				// currentProcedure = NULL;
 				strcat(command, varLexDisp);
 				geraCodigo(NULL, command);
 			}
@@ -696,6 +810,7 @@ fator:
 		else {
 			if(destinyVariable->category == function) {
 				strcpy(callProcedure, "CHPR ");
+				printf("entrou na 4\n");
 				strcat(callProcedure, destinyVariable->label);
 				sprintf(varLexDisp, ", %d", lexicalLevel);
 				strcat(callProcedure, varLexDisp);
@@ -724,7 +839,14 @@ fator:
 			}
 		}
 	}
-	| variavel ABRE_PARENTESES
+	| variavel 
+	{
+		strcpy(command,"AMEM ");
+		sprintf(totalVars, "1");
+		strcat(command, totalVars);
+		geraCodigo(NULL, command); 
+	} 
+	ABRE_PARENTESES
 	{
 		if(loadedVariable != NULL) {
 			if(loadedVariable->category == function) {
@@ -738,9 +860,12 @@ fator:
 		}
 	}
 	lista_expressoes FECHA_PARENTESES
+	// {printf("\t\tFUNCAO: %s\n", currentProcedure->identifier);}
 	{ 
 		strcpy(callProcedure, "CHPR ");
+		// printf("entrou na 5\n");
 		strcat(callProcedure, currentProcedure->label);
+		currentProcedure = NULL;
 		sprintf(varLexDisp, ", %d", lexicalLevel);
 		strcat(callProcedure, varLexDisp);
 		geraCodigo(NULL, callProcedure);
@@ -764,6 +889,7 @@ variavel:
 		}
 		else { // Otherwise, looks for right side
 			loadedVariable = search(&symbolsTable, token);
+
 			if(loadedVariable == NULL) {
 				printf("Variavel %s nao encontrada na tabela de simbolos.\n", token);
 				exit(1);

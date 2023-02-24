@@ -28,7 +28,7 @@
 int nl = 1;
 
 %}
-
+%option caseless
 pulo_linha [\n]
 
 descarte [\t ]+
@@ -166,6 +166,12 @@ function { simbolo = simb_function;
           strncpy (token, yytext, TAM_TOKEN);
           IMPRIME(" function ");
           return FUNCTION;
+ }
+
+forward { simbolo = simb_forward;
+          strncpy (token, yytext, TAM_TOKEN);
+          IMPRIME(" forward ");
+          return FORWARD;
  }
 
 goto { simbolo = simb_goto;
@@ -324,3 +330,4 @@ integer { simbolo = simb_integer;
         }
 
 %%
+

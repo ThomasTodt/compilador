@@ -1,0 +1,9 @@
+A ideia original que tivemos para abordar a questão da alteração do programa para a inclusão de "forward" consistiu em adicionar duas novas regras: "declaracao_funcao_forward" e "declaracao_procedimento_forward", dadas como opções na regra "opcoes_sub_rotinas" . No entanto, essa solução não se mostrou funcional, uma vez que dentro dessas regras há pedaços de código a serem executados, e o bison não consegue lidar com isso de maneira adequada quando decide qual opção vai seguir (ao menos essa é a nossa suspeita).
+
+Então, decidimos concentrar nossos esforços em construir ua solução que funcionasse de forma análoga a outras regras previamente implementadas. Assim surgiu a ideia de adicionar as regras "forward_ou_bloco_proc" e "forward_ou_bloco_func", que por sua vez apresentam a alternativa de a análise seguir um cabeçalho de função com o token FORWARD ou com um bloco (que implementa a função de fato).
+
+Os procedimentos sem parâmetros não devem ser seguidos de parênteses (assim como nos exemplos que haviam sido dados durante o semestre) ( ou seja: "proc" ao invés de "proc()" ).
+
+Os rótulos com forward são afetados de maneira peculiar, uma vez que, dada sua implementação, eles podem acabar aparecendo como "R0-1" (o rótulo "-1"). Isso, no entando, não tem efeito sobre a lógica do MEPA gerado. 
+
+
